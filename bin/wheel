@@ -1,4 +1,4 @@
-#!/home/aleksandar/Dev/blog/bin/python3
+#!/home/aleksandar/Dev/minimalist_blog/bin/python2
 
 # -*- coding: utf-8 -*-
 import re

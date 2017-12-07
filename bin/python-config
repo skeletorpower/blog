@@ -1,4 +1,4 @@
-#!/home/aleksandar/Dev/blog/bin/python
+#!/home/aleksandar/Dev/minimalist_blog/bin/python
 
 import sys
 import getopt
