@@ -1,7 +1,9 @@
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseRedirect, Http404
 from django.contrib import messages
-
+from django.utils import timezone
 from urllib.parse import quote_plus
+
+from django.db.models import Q
 
 from urllib3.request import urlencode
 
@@ -16,9 +18,13 @@ from .forms import PostForm
 # Create your views here.
 
 def post_create(request):
+    if not request.user.is_staff or not request.user.is_superuser:
+        raise Http404
+
     form = PostForm(request.POST or None, request.FILES or None)
     if form.is_valid():
         instance = form.save(commit=False)
+        instance.user = request.user
         instance.save()
         #message here
         messages.success(request, 'Successifully created!')
@@ -33,8 +39,14 @@ def post_create(request):
 
 
 def post_list(request):
+    today = timezone.now().date()
+    queryset_list = Post.objects.active()#.order_by("-publish")
+    if request.user.is_staff or request.user.is_superuser:
+        queryset_list = Post.objects.all()
 
-    queryset_list = Post.objects.all()#.order_by("-timestamp")
+    query = request.GET.get('q')
+    if query:
+        queryset_list = queryset_list.filter(Q(title__icontains=query) | Q(content__icontains=query))
     paginator = Paginator(queryset_list, 10)  # Show 25 contacts per page
     page_request_var = "page"
     page = request.GET.get(page_request_var)
@@ -44,6 +56,7 @@ def post_list(request):
         'object_list': queryset,
         'title': 'List',
         'page_request_var': page_request_var,
+        'today': today,
 
     }
 
@@ -59,6 +72,9 @@ def post_list(request):
 
 def post_detail(request, id=None):
     instance = get_object_or_404(Post, id=id)
+    if instance.draft or instance.publish > timezone.now().date():
+        if not request.user.is_staff or not request.user.is_superuser:
+            raise Http404
     share_string = quote_plus(instance.content)
     context = {
         'title': instance.title,
@@ -70,6 +86,9 @@ def post_detail(request, id=None):
     return render(request, 'post_detail.html', context)
 
 def post_update(request, id=None):
+    if not request.user.is_staff or not request.user.is_superuser:
+        raise Http404
+
     instance = get_object_or_404(Post, id=id)
     form = PostForm(request.POST or None, request.FILES or None, instance=instance)
     if form.is_valid():
@@ -91,6 +110,9 @@ def post_update(request, id=None):
     return render(request, 'post_form.html', context)
 
 def post_delete(request, id=None):
+    if not request.user.is_staff or not request.user.is_superuser:
+        raise Http404
+
     instance = get_object_or_404(Post, id=id)
     instance.delete()
     messages.success(request, 'Item deleted!')
